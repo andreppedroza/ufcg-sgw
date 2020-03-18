@@ -1,0 +1,42 @@
+version: '3'
+services:
+  redis:
+    image: redis
+    restart: unless-stopped
+  db:
+    image: mariadb
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASS}
+      - MYSQL_RANDOM_ROOT_PASSWORD=yes
+    volumes:
+      - ./freeradius/raddb/sql:/docker-entrypoint-initdb.d
+      - dbdata:/var/lib/mysql
+  server:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+  freeradius:
+    image: 2stacks/freeradius
+    restart: unless-stopped
+    environment:
+      - DB_HOST=db
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - RADIUS_KEY=${RADIUS_KEY}
+      - RADIUS_CLIENTS=172.17.0.0/16
+    ports:
+      - '1812/udp'
+      - '1813/udp'
+    depends_on:
+      - db
+
+volumes:
+  dbdata: {}
